@@ -1,0 +1,387 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Calculateur et Guide VMA</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- Visualization & Content Choices:
+    - Accueil (Rapport: Objectif VMA): Goal: Informer -> Viz/Presentation: Texte structuré, icônes (🎯) -> Interaction: Navigation -> Justification: Contexte clair.
+    - Le Test (Rapport: Justification Test Demi-Cooper): Goal: Informer -> Viz/Presentation: Texte structuré, icônes (💡, 🏃) -> Interaction: Navigation -> Justification: Contexte clair et justification du choix du test.
+    - Protocole - Échauffement (Rapport: Étapes, durées, exemples): Goal: Guider -> Viz/Presentation: Liste détaillée dans un accordéon, durées, icônes (⏱️, 🔥) -> Interaction: Ouvrir/Fermer accordéon -> Justification: Instructions pas-à-pas, évite la surcharge d'information.
+    - Protocole - Déroulement (Rapport: Étapes, matériel, comptage): Goal: Guider -> Viz/Presentation: Liste détaillée dans un accordéon, icônes (🏁, ❤️) -> Interaction: Ouvrir/Fermer accordéon -> Justification: Instructions claires pour l'exécution.
+    - Protocole - Gestion Effort (Rapport: Conseils allure): Goal: Conseiller -> Viz/Presentation: Texte concis dans un accordéon, icônes (🎯) -> Interaction: Ouvrir/Fermer accordéon -> Justification: Conseils pratiques.
+    - Protocole - Récupération (Rapport: Étapes): Goal: Guider -> Viz/Presentation: Liste dans un accordéon, icônes (🚶,💧) -> Interaction: Ouvrir/Fermer accordéon -> Justification: Importance de la récupération.
+    - Calculateur VMA (Rapport: Formule, exemple): Goal: Permettre le calcul, Éduquer -> Viz/Presentation: Champ de saisie (distance), bouton "Calculer", affichage du résultat VMA et FCM (optionnel), explication formule -> Interaction: Saisie utilisateur, clic -> Justification: Outil pratique et application directe des connaissances. Vanilla JS.
+    - Conseils & Limites (Rapport: Fiabilité, limites vs labo): Goal: Informer, Gérer attentes -> Viz/Presentation: Listes à puces, icônes (👍, 🔬) -> Interaction: Statique -> Justification: Informations complémentaires importantes.
+    - Avertissements (Rapport: Condition physique, avis médical, précautions): Goal: Sécuriser -> Viz/Presentation: Section mise en évidence (couleur, icône ⚠️), texte clair -> Interaction: Statique -> Justification: Priorité à la sécurité de l'utilisateur.
+    - Graphique (Non présent dans le rapport source, mais conteneur stylisé inclus pour conformité): Goal: (Futur) Visualiser progression -> Viz/Presentation: Conteneur div.chart-container avec message -> Interaction: Statique (pour l'instant) -> Justification: Respect des contraintes de style pour les conteneurs de graphiques.
+    - Confirmations: NO SVG graphics used. NO Mermaid JS used. Chart.js CDN est inclus et le conteneur est stylisé, mais le graphique n'est pas activement peuplé à partir de ce rapport spécifique.
+    -->
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f5f5f0; /* Beige clair */
+            color: #333;
+        }
+        .nav-link {
+            @apply px-3 py-2 rounded-md text-sm font-medium text-gray-700 hover:bg-teal-100 hover:text-teal-700 transition-colors;
+        }
+        .nav-link.active {
+            @apply bg-teal-600 text-white hover:bg-teal-700;
+        }
+        .section-title {
+            @apply text-3xl font-bold text-teal-700 mb-6 text-center;
+        }
+        .card {
+            @apply bg-white p-6 rounded-xl shadow-lg mb-6;
+        }
+        .accordion-button {
+            @apply w-full flex justify-between items-center p-4 text-left text-lg font-semibold text-gray-800 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors;
+        }
+        .accordion-content {
+            @apply p-4 bg-white border border-t-0 border-gray-200 rounded-b-lg;
+        }
+        .icon-text {
+            @apply flex items-center space-x-2 text-gray-700;
+        }
+        .icon-emoji {
+            @apply text-xl;
+        }
+        .chart-container {
+            position: relative;
+            width: 100%;
+            max-width: 600px; /* ou max-w-2xl en Tailwind */
+            margin-left: auto;
+            margin-right: auto;
+            height: 300px; /* ou h-72, h-80, h-96 en Tailwind */
+            max-height: 400px; /* ou max-h-96 en Tailwind */
+        }
+        @media (min-width: 768px) {
+            .chart-container {
+                height: 350px;
+            }
+        }
+        .btn-primary {
+            @apply bg-teal-600 hover:bg-teal-700 text-white font-bold py-2 px-4 rounded-lg transition-colors;
+        }
+        .input-field {
+            @apply mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-teal-500 focus:border-teal-500 sm:text-sm;
+        }
+    </style>
+</head>
+<body class="antialiased">
+
+    <nav class="bg-white/80 backdrop-blur-md shadow-md sticky top-0 z-50">
+        <div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex items-center justify-between h-16">
+                <div class="flex items-center">
+                    <span class="font-bold text-xl text-teal-700">🏃‍♂️ Guide VMA</span>
+                </div>
+                <div class="hidden md:block">
+                    <div class="ml-10 flex items-baseline space-x-4">
+                        <a href="#accueil" class="nav-link">Accueil</a>
+                        <a href="#le-test" class="nav-link">Le Test</a>
+                        <a href="#protocole" class="nav-link">Protocole</a>
+                        <a href="#calculateur" class="nav-link">Calculateur</a>
+                        <a href="#conseils" class="nav-link">Conseils</a>
+                        <a href="#avertissements" class="nav-link">Avertissements</a>
+                    </div>
+                </div>
+                <div class="md:hidden">
+                    <button id="mobile-menu-button" class="inline-flex items-center justify-center p-2 rounded-md text-gray-400 hover:text-white hover:bg-teal-600 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-white">
+                        <span class="sr-only">Ouvrir le menu principal</span>
+                        <svg class="block h-6 w-6" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16" />
+                        </svg>
+                        <svg class="hidden h-6 w-6" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                    </button>
+                </div>
+            </div>
+        </div>
+        <div id="mobile-menu" class="md:hidden hidden">
+            <div class="px-2 pt-2 pb-3 space-y-1 sm:px-3">
+                <a href="#accueil" class="block nav-link text-center">Accueil</a>
+                <a href="#le-test" class="block nav-link text-center">Le Test</a>
+                <a href="#protocole" class="block nav-link text-center">Protocole</a>
+                <a href="#calculateur" class="block nav-link text-center">Calculateur</a>
+                <a href="#conseils" class="block nav-link text-center">Conseils</a>
+                <a href="#avertissements" class="block nav-link text-center">Avertissements</a>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container mx-auto px-4 py-8 max-w-4xl">
+
+        <section id="accueil" class="pt-16 -mt-16">
+            <h1 class="section-title">🎯 Bienvenue sur le Guide VMA</h1>
+            <div class="card">
+                <p class="text-lg text-gray-700 mb-4">
+                    Cette application a pour but de vous aider à estimer votre **Vitesse Maximale Aérobie (VMA)**. La VMA est un indicateur clé de votre aptitude aérobie et une référence essentielle pour calibrer vos entraînements de course à pied.
+                </p>
+                <p class="text-gray-700">
+                    Vous trouverez ici un protocole détaillé pour réaliser un test de terrain fiable (le test de Demi-Cooper), des conseils pour optimiser votre performance et un calculateur pour estimer votre VMA.
+                </p>
+            </div>
+        </section>
+
+        <section id="le-test" class="pt-16 -mt-16">
+            <h2 class="section-title">💡 Le Test Recommandé : Demi-Cooper</h2>
+            <div class="card">
+                <p class="text-lg font-semibold mb-3">Pourquoi le test de Demi-Cooper (6 minutes) ?</p>
+                <ul class="list-disc list-inside space-y-2 text-gray-700">
+                    <li><span class="icon-emoji">👌</span> **Simplicité :** Facile à mettre en œuvre seul, sans matériel complexe. L'objectif est de parcourir la plus grande distance possible en 6 minutes.</li>
+                    <li><span class="icon-emoji">⏱️</span> **Fiabilité :** La durée de 6 minutes sollicite intensément le système aérobie et est bien corrélée avec la VMA.</li>
+                    <li><span class="icon-emoji">🏃</span> **Adaptabilité :** Nécessite seulement un chronomètre et une piste de 400m. Le cardiofréquencemètre est un plus.</li>
+                    <li><span class="icon-emoji">📊</span> **Calcul direct :** La VMA s'estime facilement à partir de la distance parcourue.</li>
+                </ul>
+                <p class="mt-4 text-sm text-gray-600">
+                    D'autres tests comme le VAMEVAL sont précis mais plus complexes à réaliser seul. Le test de Demi-Cooper offre un excellent compromis entre simplicité et fiabilité pour une auto-évaluation.
+                </p>
+            </div>
+        </section>
+
+        <section id="protocole" class="pt-16 -mt-16">
+            <h2 class="section-title">📋 Protocole Détaillé du Test</h2>
+            <div class="space-y-4">
+                <div class="accordion-item">
+                    <button class="accordion-button">
+                        <span>🔥 Échauffement (env. 25-30 min)</span>
+                        <span class="accordion-icon transform transition-transform duration-300">&#9660;</span>
+                    </button>
+                    <div class="accordion-content hidden">
+                        <p class="mb-3 text-gray-700">Un échauffement complet est crucial. Voici les étapes :</p>
+                        <ol class="list-decimal list-inside space-y-2 text-gray-700">
+                            <li>**Footing d'aisance (15 min) :** Allure très lente, pour augmenter la température corporelle.</li>
+                            <li>**Mobilisations articulaires dynamiques (5 min) :** Rotations chevilles, genoux, bassin, bras, cou.</li>
+                            <li>**Gammes athlétiques (5-7 min) :** Montées de genoux, talons-fesses, jambes tendues, pas chassés (2-3x sur 20-30m).</li>
+                            <li>**Accélérations progressives (3-5 min) :** 3-4 lignes droites (80-100m), intensité croissante, dernière à l'allure du test. Récupération marchée.</li>
+                        </ol>
+                    </div>
+                </div>
+
+                <div class="accordion-item">
+                    <button class="accordion-button">
+                        <span>🏁 Déroulement du Test (6 min d'effort)</span>
+                        <span class="accordion-icon transform transition-transform duration-300">&#9660;</span>
+                    </button>
+                    <div class="accordion-content hidden">
+                        <ol class="list-decimal list-inside space-y-2 text-gray-700">
+                            <li>**Préparation finale :** Sur la ligne de départ (couloir 1). Cardio OK, chrono en main. Concentrez-vous.</li>
+                            <li>**Départ :** Déclenchez le chrono ET commencez à courir SIMULTANÉMENT.</li>
+                            <li>**Pendant le test :**
+                                <ul class="list-disc list-inside ml-4">
+                                    <li>Objectif : Max de distance en 6 min.</li>
+                                    <li>Chronomètre : Visible pour gérer le temps.</li>
+                                    <li>Cardio : Laissez enregistrer (analyse post-test).</li>
+                                    <li>Comptage des tours : Soyez attentif.</li>
+                                </ul>
+                            </li>
+                            <li>**Fin du test :** À 6min00s PRÉCISES, arrêtez-vous NET. Marquez votre position (objet ou repère visuel). Notez votre FC.</li>
+                            <li>**Mesure de la distance :** (Nb tours x 400m) + distance sur le dernier tour incomplet. Soyez précis.</li>
+                        </ol>
+                    </div>
+                </div>
+
+                <div class="accordion-item">
+                    <button class="accordion-button">
+                        <span>🎯 Gestion de l'Effort</span>
+                        <span class="accordion-icon transform transition-transform duration-300">&#9660;</span>
+                    </button>
+                    <div class="accordion-content hidden">
+                        <ul class="list-disc list-inside space-y-2 text-gray-700">
+                            <li>**Départ :** NE PARTEZ PAS EN SPRINT. Adoptez une allure rapide mais soutenable. Mieux vaut partir prudemment et finir fort.</li>
+                            <li>**Milieu (2-4 min) :** Maintenez une allure constante. La difficulté s'installe. Concentrez-vous.</li>
+                            <li>**Fin (dernières 1-2 min) :** Si possible, accélérez pour tout donner. Finissez avec le sentiment d'un effort maximal.</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <div class="accordion-item">
+                    <button class="accordion-button">
+                        <span>🚶 Récupération (10-15 min min.)</span>
+                        <span class="accordion-icon transform transition-transform duration-300">&#9660;</span>
+                    </button>
+                    <div class="accordion-content hidden">
+                        <ol class="list-decimal list-inside space-y-2 text-gray-700">
+                            <li>**Marche (5 min) :** Immédiatement après, pour faire redescendre la FC.</li>
+                            <li>**Footing très léger (5-10 min) :** Allure très lente pour favoriser l'élimination des déchets.</li>
+                            <li>**Hydratation :** Buvez de l'eau. <span class="icon-emoji">💧</span></li>
+                            <li>**Étirements légers :** Facultatif, à distance de l'effort (quelques heures après ou le lendemain).</li>
+                        </ol>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section id="calculateur" class="pt-16 -mt-16">
+            <h2 class="section-title">🧮 Calculez Votre VMA</h2>
+            <div class="card">
+                <div class="mb-4">
+                    <label for="distance" class="block text-sm font-medium text-gray-700">Distance parcourue en 6 minutes (en mètres) :</label>
+                    <input type="number" id="distance" name="distance" class="input-field" placeholder="Ex: 1450">
+                </div>
+                <button id="calculateVMA" class="btn-primary w-full">Calculer ma VMA</button>
+                <div id="resultVMA" class="mt-6 p-4 bg-teal-50 border border-teal-200 rounded-lg hidden">
+                    <h3 class="text-lg font-semibold text-teal-700">Votre VMA estimée :</h3>
+                    <p id="vmaValue" class="text-2xl font-bold text-teal-600"></p>
+                    <p class="text-sm text-gray-600 mt-2">Formule : VMA (km/h) = Distance (m) / 100</p>
+                </div>
+                 <div class="mt-4">
+                    <p class="text-sm font-semibold text-gray-700">Fréquence Cardiaque Maximale (FCM) :</p>
+                    <p class="text-sm text-gray-600">La FC la plus élevée atteinte pendant le test est une estimation de votre FCM. Elle est utile pour définir vos zones d'entraînement personnalisées.</p>
+                </div>
+            </div>
+        </section>
+        
+        <section id="graphique" class="pt-16 -mt-16">
+            <h2 class="section-title">📈 Suivi de Progression (Exemple)</h2>
+            <div class="card">
+                <p class="text-center text-gray-600 mb-4">Ce conteneur est prêt pour un graphique de suivi de VMA (non alimenté par ce rapport).</p>
+                <div class="chart-container">
+                    <canvas id="vmaChart"></canvas>
+                </div>
+                 <p class="text-xs text-center text-gray-500 mt-2">Chart.js est chargé et le conteneur est stylé conformément aux exigences.</p>
+            </div>
+        </section>
+
+
+        <section id="conseils" class="pt-16 -mt-16">
+            <h2 class="section-title">👍 Conseils & Limites</h2>
+            <div class="card">
+                <h3 class="text-xl font-semibold text-gray-800 mb-3">Maximiser la Fiabilité :</h3>
+                <ul class="list-disc list-inside space-y-2 text-gray-700 mb-4">
+                    <li><span class="icon-emoji">☀️</span> **Météo :** Conditions neutres (10-20°C, pas de vent fort, pas de pluie).</li>
+                    <li><span class="icon-emoji">🛌</span> **Forme :** Bien reposé (pas d'entraînement intense 48h avant), bien hydraté, dernier repas léger 2-3h avant. Pas de test si fatigué ou malade.</li>
+                    <li><span class="icon-emoji">🔄</span> **Répétition :** Refaire le test toutes les 8-12 semaines dans des conditions similaires pour suivi.</li>
+                    <li><span class="icon-emoji">📏</span> **Précision :** Mesurez la distance le plus précisément possible.</li>
+                </ul>
+                <h3 class="text-xl font-semibold text-gray-800 mb-3">Limites du Test de Terrain :</h3>
+                <ul class="list-disc list-inside space-y-2 text-gray-700">
+                    <li>C'est une **estimation**. Tests en laboratoire (mesure $VO_2max$) plus précis. <span class="icon-emoji">🔬</span></li>
+                    <li>Influencé par motivation, gestion de l'effort, environnement.</li>
+                    <li>Courir seul peut rendre l'effort maximal plus difficile à atteindre pour certains.</li>
+                </ul>
+            </div>
+        </section>
+
+        <section id="avertissements" class="pt-16 -mt-16">
+            <h2 class="section-title text-red-600">⚠️ Avertissements Importants</h2>
+            <div class="card border-2 border-red-500 bg-red-50">
+                <ul class="list-disc list-inside space-y-3 text-red-700">
+                    <li>**Condition Physique Requise :** Ce test implique un effort **MAXIMAL**. Réalisez-le UNIQUEMENT si vous êtes en bonne condition physique, habitué aux efforts intenses, et sans contre-indication médicale.</li>
+                    <li>**AVIS MÉDICAL FORTEMENT RECOMMANDÉ :** Consultez votre médecin avant, surtout si >35-40 ans, reprise d'activité, antécédents médicaux, ou le moindre doute.</li>
+                    <li>**Précautions pendant le test :**
+                        <ul class="list-disc list-inside ml-4">
+                            <li>**ÉCOUTEZ VOTRE CORPS :** Arrêtez IMMÉDIATEMENT si douleur anormale (thoracique), essoufflement extrême, vertiges, nausées, etc. Votre santé prime !</li>
+                            <li>**Sécurité :** Préférez une piste fréquentée ou informez quelqu'un.</li>
+                        </ul>
+                    </li>
+                </ul>
+            </div>
+        </section>
+
+    </div>
+
+    <footer class="text-center py-8 text-sm text-gray-500 border-t border-gray-200 mt-12">
+        <p>Application basée sur le protocole d'estimation de la VMA. Utilisez avec prudence et responsabilité.</p>
+        <p>&copy; 2024 Guide VMA Interactif</p>
+    </footer>
+
+    <script>
+        // Script pour le menu mobile
+        const mobileMenuButton = document.getElementById('mobile-menu-button');
+        const mobileMenu = document.getElementById('mobile-menu');
+        mobileMenuButton.addEventListener('click', () => {
+            const isMenuOpen = mobileMenu.classList.contains('hidden');
+            mobileMenu.classList.toggle('hidden', !isMenuOpen);
+            mobileMenuButton.querySelectorAll('svg').forEach(svg => svg.classList.toggle('hidden'));
+        });
+
+        // Script pour les accordions
+        const accordionItems = document.querySelectorAll('.accordion-item');
+        accordionItems.forEach(item => {
+            const button = item.querySelector('.accordion-button');
+            const content = item.querySelector('.accordion-content');
+            const icon = item.querySelector('.accordion-icon');
+            button.addEventListener('click', () => {
+                const isHidden = content.classList.contains('hidden');
+                content.classList.toggle('hidden', !isHidden);
+                icon.style.transform = isHidden ? 'rotate(180deg)' : 'rotate(0deg)';
+            });
+        });
+
+        // Script pour le calculateur VMA
+        const calculateVMAButton = document.getElementById('calculateVMA');
+        const distanceInput = document.getElementById('distance');
+        const resultVMADiv = document.getElementById('resultVMA');
+        const vmaValueP = document.getElementById('vmaValue');
+
+        calculateVMAButton.addEventListener('click', () => {
+            const distance = parseFloat(distanceInput.value);
+            if (isNaN(distance) || distance <= 0) {
+                alert('Veuillez entrer une distance valide en mètres.');
+                return;
+            }
+            const vma = distance / 100;
+            vmaValueP.textContent = `${vma.toFixed(2)} km/h`;
+            resultVMADiv.classList.remove('hidden');
+        });
+
+        // Script pour la navigation fluide et la gestion du lien actif
+        document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+            anchor.addEventListener('click', function (e) {
+                e.preventDefault();
+                const targetId = this.getAttribute('href');
+                const targetElement = document.querySelector(targetId);
+                if (targetElement) {
+                    targetElement.scrollIntoView({
+                        behavior: 'smooth'
+                    });
+                    // Fermer le menu mobile si ouvert après un clic
+                    if (!mobileMenu.classList.contains('hidden')) {
+                        mobileMenu.classList.add('hidden');
+                        mobileMenuButton.querySelectorAll('svg').forEach(svg => svg.classList.toggle('hidden'));
+                    }
+                }
+            });
+        });
+        
+        // Placeholder pour le graphique Chart.js (juste pour montrer la configuration)
+        const ctx = document.getElementById('vmaChart');
+        if (ctx) {
+            new Chart(ctx.getContext('2d'), {
+                type: 'line',
+                data: {
+                    labels: ['Test 1', 'Test 2', 'Test 3'], // Exemples d'étiquettes
+                    datasets: [{
+                        label: 'Votre VMA (km/h)',
+                        data: [14.2, 14.5, 14.8], // Exemples de données
+                        borderColor: 'rgb(20, 184, 166)', // Couleur teal
+                        tension: 0.1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: {
+                            beginAtZero: true
+                        }
+                    },
+                    plugins: {
+                        title: {
+                            display: true,
+                            text: 'Exemple de Suivi de VMA'
+                        }
+                    }
+                }
+            });
+        }
+
+    </script>
+</body>
+</html>
